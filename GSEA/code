@@ -78,3 +78,6 @@ p6<-gseaplot2(keggonine,1,
               pvalue_table = TRUE, #设置显示p值
               ES_geom = "line" #还有一种'dot'的点图
 )
+
+KEGG_gseresult <- gseKEGG(GSEA_input, nPerm = 1000, minGSSize = 10, maxGSSize = 1000, pvalueCutoff=1)
+gseaplot2(KEGG_gseresult,1,pvalue_table = TRUE)
