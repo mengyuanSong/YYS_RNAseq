@@ -1,0 +1,25 @@
+#data是第一列列名为group,内容为1或2；其他列列名为基因，内容为转录本的normalized值
+library(FactoMineR)
+library(readxl)
+library(factoextra)
+data<-read_excel(file.choose())
+df1<-as.data.frame(data)
+df2<-subset(df1,select = -group)
+df2.pca<-PCA(df2,scale.unit = T,graph = F)
+fviz_pca_ind(df2.pca,geom.ind = "point",mean.point=F,pointsize=5,pointshape=21,fill.ind = factor(df1$group),
+  palette = c("#3B49927F","#008B457F","#8491B466","#BB00217F"),legend.title="groups",title="")+theme_bw()
+
+#想要标出每个点的名字就要去掉geom.ind = "point"
+fviz_pca_ind(df2.pca,mean.point=F,pointsize=5,pointshape=21,fill.ind = factor(df1$group),
+             palette = c("#3B49927F","#008B457F","#8491B466","#BB00217F"),legend.title="groups",title="",repel = TRUE)+theme_bw()
+
+#想要画圈
+fviz_pca_ind(df2.pca,mean.point=F,pointsize=5,pointshape=21,fill.ind = factor(df1$group),
+             palette = c("#3B49927F","#008B457F","#8491B466","#BB00217F"),legend.title="groups",title="",repel = TRUE,addEllipses=TRUE, ellipse.level=0.95)+theme_bw()
+
+#这里的方法可以列出PC数值和画圈https://www.r-bloggers.com/2021/05/principal-component-analysis-pca-in-r/
+
+#与变量一样，也可以通过 cos2 值对个体进行着色,epel = TRUE # Avoid text overlapping (slow if many points)
+fviz_pca_ind(df2.pca,col.ind = "cos2",               
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),              
+             repel = TRUE)
