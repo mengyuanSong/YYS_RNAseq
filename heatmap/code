@@ -22,5 +22,5 @@ pheatmap(data2, annotation_col = annotation_c,annotation_colors = ann_colors, sh
 
 #改变热图每格的颜色
 data<-log2(data2+1)#如果data2是read count
-colours = colorRampPalette(c("navy", "white", "firebrick3"))(10)
+colours = colorRampPalette(c("#3C5488FF","white","#DC0000FF"))(100)
 pheatmap(data, annotation_col = annotation_c,annotation_colors = ann_colors, color=colours,scale="row",cluster_rows=F,angle_col = "45")
