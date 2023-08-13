@@ -7,11 +7,6 @@ data2[, 1] <- NULL
 data2 <- as.matrix(data2)
 heatmap(data2)
 
-#这个做出来还更不明显
-library(gplots)
-gplots::heatmap.2(data2, scale = "none", col = bluered(100), 
-                  trace = "none", keysize=0.75, key.par = list(cex=0.5),dendrogram = "row", margins=c(8,16),density.info = "none")
-
 #这个要更能说明问题一些https://www.cnblogs.com/Mao1518202/p/11269595.html
 library("pheatmap")
 pheatmap(data2, cutree_rows = 4)
@@ -22,5 +17,10 @@ rownames(annotation_c)<-colnames(data2)
 pheatmap(data2, annotation_col = annotation_c)#结果同一个组的还是没有靠在一起T_T
 
 #改变注释的颜色
-ann_colors = list(Groups = c("ICT+" = "#EE00007F", "ICT-" = "#0082807F"))
+ann_colors = list(Groups = c("ICT+" = "#DC0000FF", "ICT-" = "#3C5488FF"))
 pheatmap(data2, annotation_col = annotation_c,annotation_colors = ann_colors, show_rownames = F,cluster_cols=F,angle_col = "45")
+
+#改变热图每格的颜色
+data<-log2(data2+1)#如果data2是read count
+colours = colorRampPalette(c("navy", "white", "firebrick3"))(10)
+pheatmap(data, annotation_col = annotation_c,annotation_colors = ann_colors, color=colours,scale="row",cluster_rows=F,angle_col = "45")
