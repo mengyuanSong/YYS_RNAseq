@@ -1,0 +1,441 @@
+#一、累积曲线图
+library(readxl)
+eccDNAprofiling<-read_excel(file.choose())
+lengthCount_c<-eccDNAprofiling[,5:10]
+lengthCount_c$allCount=rowSums(lengthCount_c[,2:6])
+lengthCount_c$ecc_length_log10<-log10(lengthCount_c$ecc_length)
+lengthCount_c$group<-"ICT+"
+
+lengthCount_n<-eccDNAprofiling[,c(5,11:15)]
+lengthCount_n$allCount=rowSums(lengthCount_n[,2:6])
+lengthCount_n$ecc_length_log10<-log10(lengthCount_n$ecc_length)
+lengthCount_n$group<-"ICT-"
+
+#画累积曲线图 代码和上面一样
+library(dplyr)
+length<-read_excel(file.choose())                                                                                            
+length_cumu<- length %>% 
+  group_by(group) %>% 
+  arrange(group,ecc_length_log10) %>% 
+  mutate(cum_num = cumsum(allCount)) %>% 
+  ungroup()
+
+library(ggplot2)
+ggplot(length_cumu,mapping = aes(x=ecc_length_log10,y=cum_num))+
+  geom_line(aes(color=as.factor(group)))+
+  geom_point(aes(color=as.factor(group)))+ scale_color_manual(values=c("#AAD9E9","#D52E27"))+
+  theme_classic()+
+  labs(x="log10(eccDNA length)",y="cumulative number")
+
+#二、画核型图表示eccDNA基因密度
+library(karyoploteR)
+library(readxl)
+
+#两个组别分开画
+count_c<-eccDNAprofiling[,c(1:3,5:10)]
+count_c$allCount=rowSums(count_c[,5:9])
+count_c$group<-"ICT+"
+count_c_nozero <- subset(count_c, allCount != 0, select=c(ecc_chr, ecc_start,ecc_end))
+
+count_n<-eccDNAprofiling[,c(1:3,5,11:15)]
+count_n$allCount=rowSums(count_n[,5:9])
+count_n$group<-"ICT-"
+count_n_nozero <- subset(count_n, allCount != 0, select=c(ecc_chr, ecc_start,ecc_end))
+
+kary_c<-as.data.frame(count_c_nozero)
+colnames(kary_c)[1] <- "chr"
+colnames(kary_c)[2] <- "start"
+colnames(kary_c)[3] <- "end"
+eccgenes_c <- toGRanges(kary_c)
+kp <- plotKaryotype(plot.type=6, main="eccDNA Density", ideogram.plotter = NULL, cex=1.8)
+kp_c <- kpPlotDensity(kp, eccgenes_c,window.size = 1e6, data.panel="ideogram", col="#D52E27", border="#D52E27",r0=0.5, r1=1)
+kary_n<-as.data.frame(count_n_nozero)
+colnames(kary_n)[1] <- "chr"
+colnames(kary_n)[2] <- "start"
+colnames(kary_n)[3] <- "end"
+eccgenes_n <- toGRanges(kary_n)
+kp_n <- kpPlotDensity(kp, eccgenes_n,window.size = 1e6, data.panel="ideogram", col="#AAD9E9", border="#AAD9E9",r0=0.5, r1=0)
+
+#在核型图上标注基因
+library(biomaRt)
+library(regioneR)
+
+genes<-c("MYH11","NTM","RAB6B","UCHL1","AC004556.3","PDPR","FETUB","PRKX","CTCFL",
+         "TGFBI","GSTM4","TSPYL5","RAB3B","SCN9A","FGFR1","GPR160","AC004889.1",
+         "ALDH3A1","AP000547.3","FGFBP2","PLAAT3","ODC1","MAP9","SKP1","ALDH1A1",
+         "SLC25A5","HLA-A","GSN","FGFR2","HLA-DRB1","SORL1","HLA-C","HLA-E","HLA-DRA",
+         "FZD7","FREM2","CD74","C12orf75","GSTM3","WIPF3","HMCES","RBBP7","HLA-DPA1",
+         "GABRA5","BLVRB","TKT","SDC2","TCF4","WWTR1","COCH","CYP4F11","SHH","ADD3",
+         "ID3","PPP2R2B","F2RL1","SLC35G1","HLA-B","PSMB9","RCN2","B4GALT4","GPC3",
+         "SLCO3A1","WWC3","KYNU","TFRC","EPHB6","IFI27","VDAC1","IGKC","AKR1C1","SETX",
+         "COX5A","SDHD","ZFAT","CDH13","PLTP","SMS","PSTPIP1","MED10","TYMP","FGFBP1",
+         "TSPAN14","EPB41L3","RASL11A","PPARG","ITPKB","C1S","EIF2S3","XPA","THOC3",
+         "EIF3L","MRPL54","GAS6","BST2","STRBP","TAP1","NAV1","F3","SREBF1","STOX1",
+         "AKR1B10","ARIH1","AGTRAP","PTPN3","HCP5","MXRA7","PSMC4","NPDC1","OSTF1",
+         "HNRNPH1","ABCC3","TUBB2B","HMX1","C1R","SLC25A4","FKBP5","NUPR1","TMEM158",
+         "HIGD2A","LFNG","NES","HLA-DMA","TBX2","TMEM116","ALDH2","PLBD1","SMIM19",
+         "HLA-DPB1","PTHLH","RNF130","PALM2-AKAP2","COL4A1","LRRC4","IFITM3","ME1",
+         "SAMD9","ABO","SOGA1","DEGS1","ABCC1","HEG1","LY6E","AKR1B1","EPCAM","ABRACL",
+         "GOLGA7","SLC7A11","JADE2","SEMA6A","GSTM2","DUXAP8","PSME2","GSTA4","DHRS3",
+         "SCAMP1","TIMM50","PHLDB2","PDHA1","MYCL","MCM2","PSMB8","PTCH1","RALGDS",
+         "GRN","HLA-DQB1","ACKR3","AL033397.1","SH3BGRL","PRR13","C19orf33","FXYD5",
+         "EGR1","ZBTB7C","FOXE1","SLC9B2","CERS2","HSPA1A","MPP4","SCCPDH","CASC9",
+         "PRRC2B","WNT5A","MGST1","GTF3C6","LINC00958","IRS2","UBE2L6","ZSWIM6",
+         "STAT1","LCAL1","HIF1A","NRARP","ZNF703","GBP1","SERINC5","PHLDA3","EGR3",
+         "EFNB2","UQCC2","PCSK1N","HK1","TXNRD1","CREG1","TAPBP","COL7A1","SNHG5",
+         "SC5D","CEBPB","KDSR","LRRC8A","S100A9","SURF1","MED29","MEGF9","FOXD1",
+         "MGLL","MIB2","SPATS2L","HLA-F","WDR66","SPRY2","S100A8","GNA15","PDXK",
+         "INSR","KRT17","SMAD5","SYK","STEAP1","CHCHD6","ZFHX3","S100A2","SMIM22",
+         "PIR","SLC27A5","CDKN1C","FAM83D","EMP1","ISG15","NIPSNAP3A","SIPA1L2",
+         "PRPF8","SNHG19","LBR","IL32","ARHGEF5","AQP3","CCND1","SOX9","IFI27L2",
+         "HR","AGO2","GAMT","MCM5","AL121761.1","PLAC8","ZNF652","DCBLD2","HLA-DQA1",
+         "POLD4","ADH7","PANK3","G6PD","ACSL1","ID1","GCLM","GBP4","IGHG4","SRD5A1",
+         "CES1","DAPP1","IFI35","ZFX","SP110","MAP3K21","GPAT4","HLA-DMB","TUBB2A",
+         "TPD52L2","TUFT1","ZNHIT2","SLC44A1","SGTA","KRT15","C16orf95","SEZ6L2",
+         "TWSG1","SUPT5H","NPTN","FAM3C","NXPE3","CRIP2","SOCS3","CKB","ELF3","GDA",
+         "RORA","IDH3A","NTRK2","IGF1R","LRG1","TMEM245","LCN2","IDO1","SLC4A11",
+         "PTK6","PLCXD2","TSPAN33","IFI44","STK17A","SP100","UNC93B1","NMRK1","UGDH",
+         "KLF3","COL4A2","TTLL7","SAPCD2","RRAS","KREMEN1","SAA1","XAF1","RTP4",
+         "DNAJC15","TMEM159","FAM3B","NIBAN1","RRM1","LAMP3","TMEM219","CTSS","ALDH7A1",
+         "WARS","GBP2","UBD","HSPA1B","S100A4","TMPRSS11A","OAS2","ARTN","C1QTNF12",
+         "PRSS8","S100A14","LIME1","PDZK1IP1","MPHOSPH10","TRIP6","IKBKB","IFI44L",
+         "DOHH","NR4A1","SLC39A3","MIR99AHG","CXCL14","KCNE3","PYGB","SLFN5","ERV3-1",
+         "EHF","SHISA5","SLC25A25","PTGES","ORMDL2","MX1","DNAJC5","SP140L","FOSB",
+         "DDIT4","LINC01133","IFI6","STARD10","OTUD6B-AS1","ID2","KRT13","CRIP1",
+         "CDK2AP2","MR1","ZFAND2A","SMIM30","PRKDC","KAT6A","SAMD4B","IRF7","MAGEA4",
+         "CLEC2B","EPSTI1","RBAKDN","OPTN","IFIT3","FADS1","BTN3A2","LGALS9","PLSCR1",
+         "LINC00662","DTX2","MSRB1","FNBP1L","PIM1","MAGEA6","KIZ","CDKN2A","TMPRSS11D",
+         "EID2","IRF9","MT1G","ANXA1","DDIT3","ENTPD3","PLIN3","OAS1","TAX1BP3",
+         "PAF1","SLC20A2","SLC7A8","SOD2","LY6K","SERTAD3","CAPN1","HMG20B","GBP3",
+         "RELA","TACSTD2","TRIM22","CYP4F3","OAS3","FAM43A","KRT7","KCNK6","MT1X",
+         "CSTA","FUT3","HMGB2","SLC1A4","GADD45A","MAPK10","ASL","CCDC80","STAP2",
+         "TNFRSF21","GJB2","IFI30","TPBG","TJP3","LPAR6","INPP1","FABP6","PLIN5",
+         "GADD45B","ADH1C","RPS4Y1","TNNT1","ADIRF","BIRC3","IFIH1","MRPL49",
+         "TCIM","CCL20","PCDH7","COL17A1","PITX1","RHOXF1-AS1","NEDD9","MYO1B",
+         "FOXA1","LRRC75A","IFIT1","SYNPO2","CLDN1","CD24","CRYAB","ADGRF1","SSH3",
+         "FOXP1","IFNGR1","GSTA1","EIF1AY","KLF6","UPK1B","MUC4","RBP1","TNFSF10",
+         "EGFR","AC008397.1","DDX3Y","NCOA7","MX2","ARL6IP5","IL20RB","FOXQ1",
+         "HIST1H1C","TMEM191C","IGFBP3","KLK8","SPARCL1","RHCG","IGFBP5","IGFBP6",
+         "TIMP1","LY6D","SPRR3","S100P","MUC20")
+
+ensembl <- biomaRt::useMart(biomart = "ENSEMBL_MART_ENSEMBL",
+                            host = "grch37.ensembl.org",
+                            path = "/biomart/martservice",
+                            dataset = "hsapiens_gene_ensembl")
+
+# get coordinates of the genes to visualize (corr_cn)
+genes_coord <-
+  biomaRt::getBM(attributes = c('chromosome_name', 'start_position',
+                                'end_position', 'hgnc_symbol', "band"),
+                 filters = 'hgnc_symbol',
+                 values = genes,
+                 mart = ensembl) 
+# constructs a GenomicRanges object from the bioMart query
+genes_coord <- regioneR::toGRanges(genes_coord) 
+
+# adds "chr" before chromosomes
+seqlevelsStyle(genes_coord) <- "UCSC"
+
+# check GRanges object
+head(genes_coord)
+
+# excludes duplicated CD79A entry
+genes_coord <- genes_coord[-2]
+# just the chromosome ideograms
+kp_genes <- plotKaryotype(genome = "hg19", chromosomes =  "autosomal")
+
+# add markers
+kpPlotMarkers(kp_genes, data = genes_coord,
+              labels = genes_coord$hgnc_symbol,
+              text.orientation = "horizontal",
+              r1 = 0.7, cex = 0.8,marker.parts = c(0.2, 0.7, 0.1))
+
+
+#三、做韦恩图
+library(VennDiagram) #https://www.jianshu.com/p/1156ae507891
+library(scales)
+library(ggplot2)
+count_c_nozero_venn<-count_c_nozero
+count_n_nozero_venn<-count_n_nozero
+count_c_nozero_venn$paste <- paste(count_c_nozero_venn$ecc_chr, count_c_nozero_venn$ecc_start,count_c_nozero_venn$ecc_end, sep = "_")
+count_n_nozero_venn$paste <- paste(count_n_nozero_venn$ecc_chr, count_n_nozero_venn$ecc_start,count_n_nozero_venn$ecc_end, sep = "_")
+set1 <- count_c_nozero_venn$paste
+set2 <- count_n_nozero_venn$paste
+T<-venn.diagram(x = list(set1, set2),category.names = c("ICT+" , "ICT-"),filename=NULL,lwd=1,lty=2,col=c( '#D52E27', '#AAD9E9'),
+                fill = c(alpha('#D52E27',0.3), alpha('#AAD9E9',0.3)),cat.col=c('#D52E27', '#AAD9E9'),cat.default.position="text",ext.text=F,
+                cat.pos = c(-20, 20), cat.cex=0.8, cat.fontface = "bold",margin = 0.02)
+grid.draw(T)
+
+#四、做基因组注释图
+library(ChIPpeakAnno)
+if(require(TxDb.Hsapiens.UCSC.hg19.knownGene)){
+  aCR_c<-assignChromosomeRegion(eccgenes_c, nucleotideLevel=FALSE,
+                              precedence=c("Promoters", "immediateDownstream",
+                                           "fiveUTRs", "threeUTRs",
+                                           "Exons", "Introns"),
+                              TxDb=TxDb.Hsapiens.UCSC.hg19.knownGene)
+  barplot(aCR_c$percentage)
+}
+
+#重新做barplot
+aCR_c_plot<-as.data.frame(aCR_c$percentage)
+ggplot(aCR_c_plot, aes(x=subjectHits, y=Freq)) + geom_bar(stat = "identity")
+
+if(require(TxDb.Hsapiens.UCSC.hg19.knownGene)){
+  aCR_n<-assignChromosomeRegion(eccgenes_n, nucleotideLevel=FALSE,
+                                precedence=c("Promoters", "immediateDownstream",
+                                             "fiveUTRs", "threeUTRs",
+                                             "Exons", "Introns"),
+                                TxDb=TxDb.Hsapiens.UCSC.hg19.knownGene)
+  barplot(aCR_n$percentage)
+}
+
+aCR_n_plot<-as.data.frame(aCR_n$percentage)
+ggplot(aCR_n_plot, aes(x=subjectHits, y=Freq)) + geom_bar(stat = "identity")
+
+ggplot() +
+  geom_point(data = aCR_c_plot, aes(x = subjectHits, y = Freq,colour = "ICT+"))+
+  geom_point(data = aCR_n_plot, aes(x = subjectHits, y = Freq,colour = "ICT-"))+
+  theme_bw() + theme(panel.grid=element_blank())+
+  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))+
+  labs(
+  x='Genomic elements',
+  y='Percentage',
+  colour = "group",
+  title = "Genomic region annotation"
+  )+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_color_manual(values=c('#AAD9E9','#D52E27'))
+
+#换一个包做这个图，会先生成核型图
+library("GenomicDistributions")
+c = calcChromBinsRef(eccgenes_c, "hg19")
+plotChromBins(c)
+n = calcChromBinsRef(eccgenes_n, "hg19")
+plotChromBins(n)
+
+###########不是很重要
+TSSdist_c = calcFeatureDistRefTSS(eccgenes_c, "hg19")
+plotFeatureDist(TSSdist_c, featureName="TSS")
+TSSdist_n = calcFeatureDistRefTSS(eccgenes_n, "hg19")
+plotFeatureDist(TSSdist_n, featureName="TSS")
+plotFeatureDist(TSSdist_n, featureName="TSS", tile=TRUE, labelOrder = "center")
+
+gp_c = calcPartitionsRef(eccgenes_c, "hg19")
+plotPartitions(gp_c)
+gp_n = calcPartitionsRef(eccgenes_n, "hg19")
+plotPartitions(gp_n)
+plotPartitions(gp_n, numbers=TRUE)
+###########不是很重要
+
+ep_c = calcExpectedPartitionsRef(eccgenes_c, "hg19")
+plotExpectedPartitions(ep_c)
+ep_n = calcExpectedPartitionsRef(eccgenes_n, "hg19")
+plotExpectedPartitions(ep_n)
+plotExpectedPartitions(ep_n, pval=TRUE)
+ep_c_plot<-ep_c[,c(1,4,5)]
+ep_n_plot<-ep_n[,c(1,4,5)]
+ggplot() +
+  geom_point(data = ep_c_plot, aes(x = partition, y = log10OE,colour = "ICT+"))+
+  geom_point(data = ep_n_plot, aes(x = partition, y = log10OE,colour = "ICT-"))+
+  theme_bw() + theme(panel.grid=element_blank())+
+  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))+
+  labs(
+    x='Genomic region',
+    y='Normalized genomic coverage log10(Obs/Exp)',
+    colour = "group",
+    title = "Genomic region annotation"
+  )+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_color_manual(values=c('#AAD9E9','#D52E27'))
+
+###########不是很重要
+cp_c = calcCumulativePartitionsRef(eccgenes_c, "hg19")
+plotCumulativePartitions(cp_c)
+cp_n = calcCumulativePartitionsRef(eccgenes_n, "hg19")
+plotCumulativePartitions(cp_n)
+###########不是很重要
+
+#五、做热图
+#删去重复行
+library(dplyr)
+eccDNAprofiling_norepeat<- eccDNAprofiling %>%
+  distinct(ecc_location, .keep_all = TRUE)
+
+#寻找差异eccDNA
+library(edgeR)
+options(stringsAsFactors = F)
+expr<-eccDNAprofiling_norepeat[,c(4,6:15)]
+expr<-as.data.frame(expr)
+row.names(expr)<-expr[,1]
+expr<-as.data.frame(expr)
+expr[,1]<-NULL
+group_list<-c(replicate(5,"ICT+"),replicate(5,"ICT-"))
+
+dge<-DGEList(counts=expr,group=group_list)
+keep<-rowSums(cpm(dge)>=1)>=2
+dge<-dge[keep,,keep.lib.sizes=FALSE]
+dge<-calcNormFactors(dge)
+logcpm<-cpm(dge,prior.count = 2,log = TRUE)
+heatmap(logcpm)
+library("pheatmap")
+pheatmap(logcpm,scale="row",show_rownames=F)
+annotation_col=data.frame(group=group_list)
+rownames(annotation_col) <- colnames(logcpm)
+ann_colors = list(group = c("ICT+" = "#D52E27", "ICT-" = "#AAD9E9"))
+pheatmap(logcpm,scale="row",color=colorRampPalette(c("#AAD9E9","white","#D52E27"))(20),
+         cluster_cols = F, annotation_col = annotation_col,annotation_colors = ann_colors,
+         fontsize_row=2)
+
+
+#一种方法统计差异基因（能简单看一下样本的聚类
+y <- estimateDisp(dge)
+et <- exactTest(y)
+topTags(et)
+plotMDS(y)
+
+#另一种方法统计差异基因
+#统计每行中不为0的单元格数目
+expr[["gt0"]] <- Reduce(`+`, as.data.frame(expr > 0))
+expr[["gt0"]] <- NULL
+group_list<-c(replicate(5,"ICT+"),replicate(5,"ICT-"))
+dge<-DGEList(counts=expr,group=group_list)
+keep<-rowSums(cpm(dge)>=1)>=2
+dge<-dge[keep,,keep.lib.sizes=FALSE]
+dge$samples$lib.size<-colSums(dge$counts)
+dge<-calcNormFactors(dge)
+design<-model.matrix(~0+group_list)
+rownames(design)<-colnames(dge)
+colnames(design)<-levels(group_list)
+dge<-estimateGLMCommonDisp(dge,design)
+dge<-estimateGLMTrendedDisp(dge,design)
+dge<-estimateGLMTagwiseDisp(dge,design)
+fit<-glmFit(dge,design)
+fit2<-glmLRT(fit,contrast = c(-1,1))
+DEG<-topTags(fit2,n=nrow(expr))
+DEG<-as.data.frame(DEG)
+logFC_cutoff<-1
+k1=(DEG$PValue < 0.05)&(DEG$logFC < -logFC_cutoff) #后面的代码是错误示范k1=(DEG$PValue<0.05)&(DEG$logFC<-logFC_cutoff)
+k2=(DEG$PValue < 0.05)&(DEG$logFC > logFC_cutoff)
+DEG$change=ifelse(k1,"DOWN",ifelse(k2,"UP","NOT"))
+table(DEG$change)
+write.csv(DEG,"DEG_ecc.csv")
+
+
+#六、分两个组画density曲线
+ecc_density_c<-length[,c(2,3)] #这里要注意是哪两列
+ecc_density_c<-as.data.frame(ecc_density_c)
+
+library(plyr)
+mu <- ddply(ecc_density_c, "group", summarise, grp.mean=mean(allCount))
+head(mu)
+
+p <- ggplot(ecc_density_c, aes(x=allCount, color=group)) + 
+  geom_density(alpha=0.4)+
+    scale_x_continuous(limits = c(0,100))+
+    geom_vline(data=mu, aes(xintercept=grp.mean, color=group),linetype="dashed")+
+    labs(x="Frequency of eccDNA",y="density")+
+    scale_color_manual(values=c("#AAD9E9","#D52E27"))+
+  theme_bw() + theme(panel.grid=element_blank())
+p
+# 如果曲线要改填充颜色
+p <- ggplot(ecc_density_c, aes(x=allCount, fill=group)) + 
+  geom_density(alpha=0.4)+
+  scale_x_continuous(limits = c(0,100))+
+  geom_vline(data=mu, aes(xintercept=grp.mean, color=group),linetype="dashed")+
+  labs(x="Frequency of eccDNA",y="density")+
+  scale_color_manual(values=c("#AAD9E9","#D52E27"))+
+  theme_bw() + theme(panel.grid=element_blank())
+p
+p+scale_fill_manual(values=c("#AAD9E9","#D52E27"))
+
+#根据数据eccDNAprofiling的前4列去重
+index<-duplicated(eccDNAprofiling[,c(1:4)])
+new<-eccDNAprofiling[!index,]#和eccDNAprofiling_norepeat结果一样
+write.csv(new,file = "eccDNAprofiling_norepeat.csv")
+
+#七、画图表示the number of eccDNAs with or without genes in T and NT samples
+unique_genes_c<-eccDNAprofiling_norepeat[,c(1:10,21)]
+unique_genes_n<-eccDNAprofiling_norepeat[,c(1:5,11:15,21)]
+unique_genes_c$count<-rowSums(unique_genes_c[,6:10])
+unique_genes_n$count<-rowSums(unique_genes_n[,6:10])
+unique_genes_c_nozero<-subset(unique_genes_c,count!=0) 
+unique_genes_n_nozero<-subset(unique_genes_n,count!=0) 
+unique_genes_c_nozero_withgenes<-subset(unique_genes_c_nozero,!is.na(gene_name))
+unique_genes_c_nozero_withoutgenes<-subset(unique_genes_c_nozero,is.na(gene_name))
+unique_genes_n_nozero_withgenes<-subset(unique_genes_n_nozero,!is.na(gene_name))
+unique_genes_n_nozero_withoutgenes<-subset(unique_genes_n_nozero,is.na(gene_name))
+number_genes_c_nozero_withgenes<-sum(unique_genes_c_nozero_withgenes$count)
+number_genes_n_nozero_withgenes<-sum(unique_genes_n_nozero_withgenes$count)
+number_genes_c_nozero_withoutgenes<-sum(unique_genes_c_nozero_withoutgenes$count)
+number_genes_n_nozero_withoutgenes<-sum(unique_genes_n_nozero_withoutgenes$count)
+library(tidyverse)
+#生成条形图的数据
+group = c("with_genes","without_genes")
+ICTsensitive = c(538835,521142)
+ICTnegative = c(172308,177105)
+dat=data.frame(group,ICTsensitive,ICTnegative)
+names(dat) = c("group","ICT+","ICT-")
+dat = melt(dat,variable.name="ICT",value.name = "Num")
+p = ggplot(dat, aes(x = group,y = Num,fill = ICT))+
+  #####这部分的position = "dodge"，并排肩并肩的柱状图
+  geom_bar(stat ="identity",width = 0.6,position = "dodge")+     
+  scale_fill_manual(values = c("#D52E27","#AAD9E9"))+                 #########设定颜色
+  labs(x = "",y = "Number", title = "")+                        ############坐标标签和图片title
+  geom_text(aes(label = dat$Num),position=position_dodge(width = 0.5),size = 4,vjust = -0.25)+ ###########设置柱子上的标签文字，文字的position_dodge(width=0.5)设置，保证分隔宽度。
+  guides(fill = guide_legend(reverse = F))+##############图例顺序反转
+  theme_classic()+
+  theme(axis.text.x =element_text(size = 12), 
+        axis.text.y =element_text(size = 12), ######图片title文字大小位置
+        legend.title = element_blank(),                    ##########图例名称为空
+        legend.text = element_text(size = 12),        ##########图例文字大小
+        legend.position = 'right',               ############图例位置
+        legend.key.size=unit(0.8,'cm'))             #############图例大小
+
+print(p)
+
+#八、统计每个基因产生的unique eccDNA数量
+freq_c<-table(unique_genes_c_nozero_withgenes$gene_name)
+freq_c<-as.data.frame(freq_c)
+library(ggpubr)
+freq_c_top20<-subset(freq_c,Freq>18)
+bp <- ggbarplot(freq_c_top20, x = "Var1", y = "Freq", add = "mean_sd",fill = "grey")
+bp
+
+#九、火山图
+library(ggplot2)
+library(ggrepel)
+dataset<-DEG #如果是从edgeR直接得到的
+cut_off_pvalue = 0.05
+cut_off_logFC = 1
+dataset$change = ifelse(dataset$PValue < cut_off_pvalue & abs(dataset$logFC) >= cut_off_logFC, 
+                        ifelse(dataset$logFC> cut_off_logFC ,'Up','Down'),
+                        'Stable')
+
+p <- ggplot(
+  # 数据、映射、颜色
+  dataset, aes(x = logFC, y = -log10(PValue), colour=change)) +
+  geom_point(alpha=0.4, size=3.5) +
+  scale_color_manual(values=c("#546de5", "#d2dae2","#ff4757"))+
+  # 辅助线
+  geom_vline(xintercept=c(-1,1),lty=4,col="black",lwd=0.8) +
+  geom_hline(yintercept = -log10(cut_off_pvalue),lty=4,col="black",lwd=0.8) +
+  # 坐标轴
+  labs(x="log2(fold change)",
+       y="-log10 (p-value)")+
+  theme_bw()+
+  # 图例
+  theme(plot.title = element_text(hjust = 0.5), 
+        legend.position="right", 
+        legend.title = element_blank())
+p
+
+dataset$label <- ifelse(dataset$PValue < cut_off_pvalue & abs(dataset$logFC) >1,
+                        as.character(rownames(dataset)), "")
+p + geom_label_repel(data = dataset, aes(x = logFC, 
+                                         y = -log10(PValue), 
+                                         label = label),
+                     size = 3, box.padding = unit(0.5, "lines"),
+                     point.padding = unit(0.8, "lines"), 
+                     segment.color = "black", 
+                     show.legend = FALSE)
