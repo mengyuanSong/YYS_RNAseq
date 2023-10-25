@@ -5,7 +5,6 @@ list.files() #查看当前工作路径下的文件
 
 library(readxl)
 DEG_GSEA<-read_excel(file.choose())
-                                                                                               
 library(openxlsx)#读取.xlsx文件
 library(ggplot2)#柱状图和点状图
 library(stringr)#基因ID转换
@@ -20,23 +19,18 @@ library(ComplexHeatmap)#绘制图例
 GO_database <- 'org.Hs.eg.db'
 KEGG_database <- 'hsa'
 gene <- bitr(DEG_GSEA$gene_name,fromType = 'SYMBOL',toType = 'ENTREZID',OrgDb = GO_database)
-'select()' returned 1:many mapping between keys and columns
-Warning message:
-In bitr(DEP_p_GSEA$gene_symbol, fromType = "SYMBOL", toType = "ENTREZID",  :
-  2.37% of input gene IDs are fail to map...
-
 GO<-enrichGO( gene$ENTREZID,#GO富集分析
-               OrgDb = GO_database,
-               keyType = "ENTREZID",#设定读取的gene ID类型
-               ont = "ALL",#(ont为ALL因此包括 Biological Process,Cellular Component,Mollecular Function三部分）
-               pvalueCutoff = 0.05,#设定p值阈值
-               qvalueCutoff = 0.05,#设定q值阈值
-               readable = T)
+              OrgDb = GO_database,
+              keyType = "ENTREZID",#设定读取的gene ID类型
+              ont = "ALL",#(ont为ALL因此包括 Biological Process,Cellular Component,Mollecular Function三部分）
+              pvalueCutoff = 0.05,#设定p值阈值
+              qvalueCutoff = 0.05,#设定q值阈值
+              readable = T)
+barplot(GO, split="ONTOLOGY")+facet_grid(ONTOLOGY~., scale="free")
 KEGG<-enrichKEGG(gene$ENTREZID,#KEGG富集分析
-                  organism = KEGG_database,
-                  pvalueCutoff = 0.05,
-                  qvalueCutoff = 0.05)
-
+                 organism = KEGG_database,
+                 pvalueCutoff = 0.05,
+                 qvalueCutoff = 0.05)
 DEG_GSEA_2<-DEG_GSEA[,c(1:2,5)]#选出下一行命令中需要的三列
 names(DEG_GSEA_2) <- c('SYMBOL','Log2FoldChange','pvalue')
 
@@ -44,40 +38,24 @@ DEG_GSEA_2_merge <- merge(DEG_GSEA_2,gene,by='SYMBOL')
 GSEA_input <- DEG_GSEA_2_merge$Log2FoldChange
 names(GSEA_input) = DEG_GSEA_2_merge$ENTREZID
 GSEA_input = sort(GSEA_input, decreasing = TRUE)
-GSEA_KEGG <- gseKEGG(GSEA_input, organism = KEGG_database, pvalueCutoff = 0.05)
-
-preparing geneSet collections...
-GSEA analysis...
-leading edge analysis...
-done...
-Warning message:
-In preparePathwaysAndStats(pathways, stats, minSize, maxSize, gseaParam,  :
-  There are ties in the preranked stats (0.22% of the list).
-The order of those tied genes will be arbitrary, which may produce unexpected results.
-
-barplot(GO, split="ONTOLOGY")+facet_grid(ONTOLOGY~., scale="free")
+GSEA_input<-GSEA_input[!duplicated(names(GSEA_input))]
 
 #计算KEGG并展示NES
-keggonine<-gseKEGG(geneList = GSEA_input,
-                   organism = "hsa",
-                   minGSSize = 20,
-                   maxGSSize = 1000,
-                   eps = 0, #为了获得更精准的结果，可以设置为0
-                   pvalueCutoff = 0.05,
-                   pAdjustMethod = "BH",
-                   use_internal_data = F #用网络KEGG
-)
+keggonine<-gseKEGG(geneList = GSEA_input,minGSSize = 100,
+                   organism = "hsa",pAdjustMethod="none")
 keggonine@result
 write_xlsx(keggonine@result,"YYS_GSEA.xlsx")
-#标注NES的GSEA
-p6<-gseaplot2(keggonine,1,
-              title = "GSEA focal adhesion NES=-2.04",
+#标注NES的GSEA,且能显示出p.adjust
+p<-gseaplot2(keggonine,8,
+              title = "Neuroactive ligand-receptor interaction NES=1.357",
               color = "#FA5860", #设置线条颜色
               base_size = 12, #设置字体大小
               rel_heights = c(1.5, 0.5, 1), # 设置三组图的比例
               pvalue_table = TRUE, #设置显示p值
               ES_geom = "line" #还有一种'dot'的点图
 )
+p
 
+#另一种算法展示图
 KEGG_gseresult <- gseKEGG(GSEA_input, nPerm = 1000, minGSSize = 10, maxGSSize = 1000, pvalueCutoff=1)
-gseaplot2(KEGG_gseresult,1,pvalue_table = TRUE)
+gseaplot2(KEGG_gseresult,8,pvalue_table = TRUE)
