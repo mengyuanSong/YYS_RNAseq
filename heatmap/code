@@ -20,7 +20,7 @@ pheatmap(data2, annotation_col = annotation_c)#结果同一个组的还是没有
 ann_colors = list(Groups = c("ICT+" = "#DC0000FF", "ICT-" = "#3C5488FF"))
 pheatmap(data2, annotation_col = annotation_c,annotation_colors = ann_colors, show_rownames = F,cluster_cols=F,angle_col = "45")
 
-#改变热图每格的颜色
+#改变热图每格的颜色,同一组样本可以聚在一起
 data<-log2(data2+1)#如果data2是read count
 colours = colorRampPalette(c("#3C5488FF","white","#DC0000FF"))(100)
-pheatmap(data, annotation_col = annotation_c,annotation_colors = ann_colors, color=colours,scale="row",cluster_rows=F,angle_col = "45")
+pheatmap(data, annotation_col = annotation_c,annotation_colors = ann_colors, color=colours,scale="row",cluster_cols=F,angle_col = "45")
